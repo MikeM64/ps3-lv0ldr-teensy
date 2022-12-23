@@ -15,6 +15,12 @@
 
 #include <SPI.h>
 
+/*
+ * Choose which PS3 you're running this against before compiling.
+ */
+//#define PS3_CECH_2500
+//#define PS3_CECH_3000
+
 /* Pin to tell the FPGA to enable/disable the interrupt lines from BE -> SC */
 #define FPGA_INT_EN_PIN     2
 
@@ -90,7 +96,15 @@ static uint8_t s_nvs_heap_spray_hdr[] = {0x14, 0x01, 0x00, 0x02, 0x00, 0x00, 0x8
  * to ensure execution continues as normal.
  * Written after the header to 0xA010
  */
+
+#if defined(PS3_CECH_2500)
 static uint8_t s_nvs_read_body[] = {0x0, 0x2, 0x0, 0x20};
+#elif defined(PS3_CECH_3000)
+static uint8_t s_nvs_read_body[] = {0x82, 0x01, 0x80, 0x01};
+#else
+#error Please select which PS3 model is being used
+#endif
+
 
 /*
  * Body checksum, written to the word immediately after the packet.
@@ -319,7 +333,11 @@ spi_peripheral_rx_cb (void)
             }
 
             LPSPI4_TDR = s_spi_rx_buffer[s_spi_rx_index];
-            s_spi_rx_index = (s_spi_rx_index + 1) % sizeof(s_spi_rx_buffer);
+            if (s_spi_rx_index == sizeof(s_spi_rx_buffer) - 1) {
+                s_spi_rx_index = 0;
+            } else {
+                s_spi_rx_index += 1;
+            }
             LPSPI4_SR = LPSPI_SR_WCF; /* Clear WCF */
         }
     }
